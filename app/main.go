@@ -27,4 +27,17 @@ func main() {
 	 	fmt.Println("Error accepting connection: ", err.Error())
 	 	os.Exit(1)
 	 }
+
+	responder net.Conn
+	buffer := make([]byte, 1024) // Create 'Slice' i.e. arrayList needed for net pkg
+	responder.Read(buffer)
+
+	response := "HTTP/1.1" // Status Line
+	response += "200" // Status Code
+	response += "OK" // REASON PHRASE 
+        response += "\r\n" // CRLF end of status line
+	response += "\r\n" // CRLF end of headers
+		
+
+
 }
