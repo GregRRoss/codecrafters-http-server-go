@@ -28,7 +28,7 @@ func main() {
 	 	os.Exit(1)
 	 }
 
-	responder net.Conn
+	var responder net.Conn
 	buffer := make([]byte, 1024) // Create 'Slice' i.e. arrayList needed for net pkg
 	responder.Read(buffer)
 
