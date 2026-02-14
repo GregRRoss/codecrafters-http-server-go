@@ -13,7 +13,7 @@ var _ = os.Exit
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
-
+        var responder net.Conn
 	// TODO: Uncomment the code below to pass the first stage
 	//
 	 l, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -22,13 +22,12 @@ func main() {
 	 	os.Exit(1)
 	 }
 	
-	 _, err = l.Accept()
+	 responder, err = l.Accept()
 	 if err != nil {
 	 	fmt.Println("Error accepting connection: ", err.Error())
 	 	os.Exit(1)
 	 }
 
-	var responder net.Conn
 	buffer := make([]byte, 1024) // Create 'Slice' i.e. arrayList needed for net pkg
 	responder.Read(buffer)
 
