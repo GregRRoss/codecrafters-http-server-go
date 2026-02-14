@@ -37,7 +37,7 @@ func main() {
 	response += "OK" // REASON PHRASE 
         response += "\r\n" // CRLF end of status line
 	response += "\r\n" // CRLF end of headers
-		
+	responder.Write([]byte(response))
 
 
 }
