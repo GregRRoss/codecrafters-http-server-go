@@ -42,7 +42,20 @@ func main() {
 	// Parse read bytes
         	// We are looking for what comes after the GET / and before the HTTP/1.1	
 		// Slice we want starts at 01234... character 5 must be a space
+	var echoString string
+	var echoTrue bool
+
 	if read_result[5]==' ' {
+		urlFound = true
+	} else if read_result[5:10]=="echo/"{
+		fmt.Println("ECHO FOUND")
+		echoTrue = true
+		// Echo string is characters 10 until a space
+		i := 10
+		for current_character := read_result[i] ; current_character!=' '; current_character = read_result[i] {
+			echoString += string(current_character)
+			i++
+		}
 		urlFound = true
 	} else {
 		urlFound = false
@@ -51,14 +64,33 @@ func main() {
 	if urlFound {
 		response += "200 " // Status Code
 		response += "OK" // REASON PHRASE
+		if echoTrue {
+			fmt.Println(echoString)
+		}
 	} else {
 		response += "404 " // NOT FOUND STATUS CODE
-		response += "Not Found" // REASON PHRASE NOT FOUND	
+		response += "Not Found" // REASON PHRASE NOT FOUND
+	}
+	response += "\r\n" // CRLF for status line
+	if echoTrue {
+		response += "Content-Type: text/plain\r\n" // Header for format of response body
+		echoLength := len(echoString)
+		fmt.Print("echoLength: ")
+		fmt.Println(echoLength)
+		response += fmt.Sprintf("Content-Length: %d", echoLength)
+		response += "\r\n" 
 	}
 
-	// End response 
-        response += "\r\n" // CRLF end of status line
+	// End of Header 
 	response += "\r\n" // CRLF end of headers
+	
+	// Body
+	if echoTrue {
+		response += echoString
+	}
+		
+	fmt.Println("RESPONSE TO CLIENT")
+	fmt.Println(response)
 	responder.Write([]byte(response))
 
 	// Close resources at end
