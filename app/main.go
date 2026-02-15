@@ -44,6 +44,7 @@ func main() {
         	// We are looking for what comes after the GET / and before the HTTP/1.1	
 		// Slice we want starts at 01234... character 5 must be a space
 	var echoString string
+        var outputAgentName string
 	var echoTrue bool
 	var agentGet bool
 
@@ -86,7 +87,6 @@ func main() {
 		response += fmt.Sprintf("Content-Length: %d", echoLength)
 		response += "\r\n" 
 	} else if agentGet {
-		var outputAgentName string
 		cut1, cut2, _ := strings.Cut(read_result, "\r\n") // cut 1 will be the header line, cut2 is rest of header
 		fmt.Println("cut1: " + cut1)
 		fmt.Println("cut2: " + cut2)
@@ -102,8 +102,12 @@ func main() {
 	        fmt.Println("cut1: " + cut1)
                 fmt.Println("cut2: " + cut2)	
 	}
-		response += outputAgentName
-
+		response += "Content-Type: text/plain\r\n" // Header for format of response body
+                conLength := len(outputAgentName)
+                fmt.Print("conLength: ")
+                fmt.Println(conLength)
+                response += fmt.Sprintf("Content-Length: %d", conLength)
+                response += "\r\n"
 		
 	}
 
@@ -113,6 +117,8 @@ func main() {
 	// Body
 	if echoTrue {
 		response += echoString
+	} else if agentGet {
+		response += outputAgentName
 	}
 		
 	fmt.Println("RESPONSE TO CLIENT")
