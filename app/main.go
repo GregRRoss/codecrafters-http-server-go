@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
@@ -44,6 +45,7 @@ func main() {
 		// Slice we want starts at 01234... character 5 must be a space
 	var echoString string
 	var echoTrue bool
+	var agentGet bool
 
 	if read_result[5]==' ' {
 		urlFound = true
@@ -57,6 +59,10 @@ func main() {
 			i++
 		}
 		urlFound = true
+	} else if read_result[5:16]=="user-agent " {
+		fmt.Println("USER AGENT ENDPOINT REACHED")
+		urlFound = true
+		agentGet = true
 	} else {
 		urlFound = false
 	}
@@ -79,6 +85,26 @@ func main() {
 		fmt.Println(echoLength)
 		response += fmt.Sprintf("Content-Length: %d", echoLength)
 		response += "\r\n" 
+	} else if agentGet {
+		var outputAgentName string
+		cut1, cut2, _ := strings.Cut(read_result, "\r\n") // cut 1 will be the header line, cut2 is rest of header
+		fmt.Println("cut1: " + cut1)
+		fmt.Println("cut2: " + cut2)
+		// Check each header line to find user-agent
+		for {
+			if len(cut1) > 11 {
+				if cut1[0:12] == "User-Agent: " {
+					outputAgentName = cut1[12:]
+					break
+				}
+			}
+		cut1, cut2, _ =  strings.Cut(cut2, "\r\n") // cut 1 will be the header line, cut2 is rest of header
+	        fmt.Println("cut1: " + cut1)
+                fmt.Println("cut2: " + cut2)	
+	}
+		response += outputAgentName
+
+		
 	}
 
 	// End of Header 
