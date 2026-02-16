@@ -1,3 +1,5 @@
+// GregRRoss Codecrafters HTTP Server 
+
 package main
 
 import (
@@ -5,16 +7,20 @@ import (
 	"net"
 	"os"
 	"strings"
+	"flag"
+	// We could add path/filepath here, and use filepath.Join() to account for different
+	// Paths in different operating systems	
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = net.Listen
 var _ = os.Exit
-
+// os.ReadFile() will return a byte array as the first return and an error as the second
+// Os.Stat() can give file information and an error, and can be used to check if a file is there
+// os.ReadDir() will give the directory listing
 
 // This function handles
 // from each thread
-func handleConnection(responder net.Conn){
+func handleConnection(responder net.Conn, fileDirectory string){
 	defer responder.Close()
        // Read get request
         buffer := make([]byte, 1024) // Create 'Slice' i.e. arrayList needed for net pkg
@@ -36,9 +42,9 @@ func handleConnection(responder net.Conn){
         var echoTrue bool
         var agentGet bool
 
-        if read_result[5]==' ' {
+        if read_result[5]==' ' { // Top level directory ping
                 urlFound = true
-        } else if read_result[5:10]=="echo/"{
+        } else if read_result[5:10]=="echo/"{ // ECHO endpoint
                 fmt.Println("ECHO FOUND")
                 echoTrue = true
                 // Echo string is characters 10 until a space
@@ -48,13 +54,52 @@ func handleConnection(responder net.Conn){
                         i++
                 }
                 urlFound = true
-        } else if read_result[5:16]=="user-agent " {
+        } else if read_result[5:16]=="user-agent " { // USER-AGENT Endpoint
                 fmt.Println("USER AGENT ENDPOINT REACHED")
                 urlFound = true
                 agentGet = true
+	} else if read_result[5:11]=="files/" {
+		fmt.Println("FILES ENDPOINT REACHED")
+		//Get rest of line to get file name
+		//Check if file exists
+		var fileFound bool
+		// Get the files in the directory
+		filesList, readError := os.ReadDir(fileDirectory)
+		if readError != nil {
+			fmt.Println(readError)
+		}
+
+		// Parse to get file name
+		_, word2plus, _ := strings.Cut(read_result, " ")
+		word2, _, _ := strings.Cut(word2plus, " ")  		
+		// word2 will be /files/xxxxx	
+		var getFile string = word2[7:]
+		// In the future I can do strings.TrimPrefix(r.URL.Path, "/files/" 
+
+		// Loop through the directory and see if the desired file is there.
+		for fileIndex, file := range filesList {
+			fileName := file.Name()
+			fmt.Printf("%d - %s \n", fileIndex, fileName)
+			if fileName == getFile {
+				fileFound = true
+			}
+		} 
+
+		if fileFound {
+			pathString := fileDirectory + "/" + getFile
+			fileContents, _ := os.ReadFile(pathString)
+			fmt.Println("Contents of " + pathString + ":")
+			fmt.Println(string(fileContents))
+			urlFound = true
+		} else {
+			urlFound = false
+		}
         } else {
                 urlFound = false
         }
+
+
+
         // customize response
         if urlFound {
                 response += "200 " // Status Code
@@ -115,7 +160,12 @@ func handleConnection(responder net.Conn){
 }// End of function handling thread
 
 func main() {
+
+	fileDirectory := flag.String("directory", "/defaultDirectory", "Directory Path") // Get Directory for files
+	flag.Parse()
+		
 	fmt.Println("SERVER LOG \n =================================== ")
+	fmt.Println("File Directory: " + *fileDirectory)
         var connection net.Conn
 	listener, err := net.Listen("tcp", "0.0.0.0:4221")
                  if err != nil {
@@ -131,7 +181,7 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		 } 
-		 go handleConnection(connection)
+		 go handleConnection(connection, *fileDirectory)
 	
 	     }
 	}// End MAIN	
