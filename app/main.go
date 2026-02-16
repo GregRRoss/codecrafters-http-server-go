@@ -147,7 +147,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
                 response += "\r\n"
 		// END AGENT GET HEADER
         } else if fileReturn {  // FILE RETURN HEADER
-		response += "Content-Type: text/plain\r\n" // Header for format of response body
+		response += "Content-Type: application/octet-stream\r\n" // Header for format of response body
                 conLength := len(fileContentString)
                 fmt.Print("conLength: ")
                 fmt.Println(conLength)
