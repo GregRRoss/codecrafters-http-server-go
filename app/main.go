@@ -41,6 +41,8 @@ func handleConnection(responder net.Conn, fileDirectory string){
         var outputAgentName string
         var echoTrue bool
         var agentGet bool
+	var fileReturn bool
+	var fileContentString string // Store the contents of a file that is read
 
         if read_result[5]==' ' { // Top level directory ping
                 urlFound = true
@@ -88,9 +90,11 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		if fileFound {
 			pathString := fileDirectory + "/" + getFile
 			fileContents, _ := os.ReadFile(pathString)
+			fileContentString = string(fileContents)
 			fmt.Println("Contents of " + pathString + ":")
-			fmt.Println(string(fileContents))
+			fmt.Println(fileContentString)
 			urlFound = true
+			fileReturn = true
 		} else {
 			urlFound = false
 		}
@@ -141,9 +145,15 @@ func handleConnection(responder net.Conn, fileDirectory string){
                 fmt.Println(conLength)
                 response += fmt.Sprintf("Content-Length: %d", conLength)
                 response += "\r\n"
-
-        }
-
+		// END AGENT GET HEADER
+        } else if fileReturn {  // FILE RETURN HEADER
+		response += "Content-Type: text/plain\r\n" // Header for format of response body
+                conLength := len(fileContentString)
+                fmt.Print("conLength: ")
+                fmt.Println(conLength)
+                response += fmt.Sprintf("Content-Length: %d", conLength)
+                response += "\r\n"
+	}
         // End of Header
         response += "\r\n" // CRLF end of headers
 
@@ -152,7 +162,9 @@ func handleConnection(responder net.Conn, fileDirectory string){
                 response += echoString
         } else if agentGet {
                 response += outputAgentName
-        }
+        } else if fileReturn {
+		response += fileContentString
+	}
 
         fmt.Println("RESPONSE TO CLIENT")
         fmt.Println(response)
