@@ -194,7 +194,9 @@ func handleConnection(responder net.Conn, fileDirectory string){
                         var saveFile string = word2[7:]
 			fmt.Println("New file name: " + saveFile)
 			pathString := fileDirectory + "/" + saveFile
-			dataString := "WRONG DATA SO WRONG"
+			// Parse POST request to get the file contents out of it.
+			 _, cut2, _ :=  strings.Cut(read_result, "\r\n\r\n") // cut 1 will be the header line, cut2 is body
+			dataString := cut2
 			os.WriteFile(pathString,[]byte(dataString),0644) //0644 is apparently the necessary permissions
 			response := "HTTP/1.1 201 Created\r\n\r\n"
 			responder.Write([]byte(response))
