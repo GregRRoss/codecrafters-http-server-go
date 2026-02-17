@@ -63,9 +63,20 @@ func handleConnection(responder net.Conn, fileDirectory string){
         // make response
         response := "HTTP/1.1 " // Status Line
         urlFound := true
-	
+	//gzipDeclared := false
 	// Check if Accept-Encoding is in headers and get the value from it
 	encoding, encoded := headers["Accept-Encoding"]
+	if encoding != "gzip" {
+		// Encoding could be comma separated list
+		encodeCut1, encodeCut2, commaExists := strings.Cut(encoding, ", ")
+		for commaExists {
+			encodeCut1, encodeCut2, commaExists = strings.Cut(encodeCut2, ", ")
+			if encodeCut1 == "gzip"{ 
+				//gzipDeclared = true
+				encoding = "gzip"
+				 }
+		}
+	}
 	if encoded {
 		fmt.Println("Encoding: " + encoding)
 		if !(encoding == "gzip") {
