@@ -168,7 +168,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		if echoTrue {
 			response += "Content-Type: text/plain\r\n" // Header for format of response body
 			if encoded {
-			response += ("Content-Encoding: " + encoding + "\n")
+			response += ("Content-Encoding: " + encoding + "\r\n")
 			}
 			echoLength := len(echoString)
 			fmt.Print("echoLength: ")
