@@ -68,6 +68,10 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	encoding, encoded := headers["Accept-Encoding"]
 	if encoded {
 		fmt.Println("Encoding: " + encoding)
+		if !(encoding == "gzip") {
+			encoded = false
+			fmt.Println("Invalid Encoding Detected *!*!*")
+		}
 	} else {
 		fmt.Println("No Encoding")
 	}
