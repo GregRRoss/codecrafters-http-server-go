@@ -12,11 +12,39 @@ import (
 	// Paths in different operating systems	
 )
 
-// Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = os.Exit
 // os.ReadFile() will return a byte array as the first return and an error as the second
 // Os.Stat() can give file information and an error, and can be used to check if a file is there
 // os.ReadDir() will give the directory listing
+
+
+func getHeaders(httpMsg string) map[string]string {
+	        	// First get rid of start line     
+	   		 cut1, cut2, _ := strings.Cut(httpMsg, "\r\n") // cut 1 will be start line, cut2 is rest of message
+                        //fmt.Println("Start Line: " + cut1)
+			// Next get rid of body
+			cut2, body, _ := strings.Cut(cut2, "\r\n\r\n")
+		        // Now get each line of headers to put in header map
+			headers := make(map[string]string)
+			sepFound := true
+                        // Check each header line to find user-agent
+                        for sepFound {
+                       		cut1, cut2, sepFound =  strings.Cut(cut2, "\r\n") // cut 1 will be the header line, cut2 is rest of header
+                        	//fmt.Println("Header Line : " + cut1)
+				// if sepFound {
+                		// 	fmt.Println("Sep found ")
+				// }
+				key, value, _ := strings.Cut(cut1, ": ")
+				headers[key] = value
+		      	        //fmt.Println("cut2: " + cut2)
+				}
+			
+			fmt.Println("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+			//fmt.Println(headers)
+			
+			fmt.Println("Body: ")
+			fmt.Println(body)
+			return headers
+}
 
 // This function handles
 // from each thread
@@ -30,10 +58,19 @@ func handleConnection(responder net.Conn, fileDirectory string){
         fmt.Println("START OF TRANSMISSION")
         fmt.Println(read_result)
         fmt.Println("END OF TRANSMISSION")
+	headers := getHeaders(read_result)
+	fmt.Println(headers)
         // make response
         response := "HTTP/1.1 " // Status Line
         urlFound := true
-
+	
+	// Check if Accept-Encoding is in headers and get the value from it
+	encoding, encoded := headers["Accept-Encoding"]
+	if encoded {
+		fmt.Println("Encoding: " + encoding)
+	} else {
+		fmt.Println("No Encoding")
+	}
         // Parse read bytes
                 // We are looking for what comes after the GET / and before the HTTP/1.1
                 // Slice we want starts at 01234... character 5 must be a space
@@ -130,6 +167,9 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		response += "\r\n" // CRLF for status line
 		if echoTrue {
 			response += "Content-Type: text/plain\r\n" // Header for format of response body
+			if encoded {
+			response += ("Content-Encoding: " + encoding + "\n")
+			}
 			echoLength := len(echoString)
 			fmt.Print("echoLength: ")
 			fmt.Println(echoLength)
