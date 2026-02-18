@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 	"flag"
+	"compress/gzip" // Necessary to compress to gzip format
+	"bytes" // Because gzip.NewWriter requires an io.Writer interface, and bytes provides bytes.Buffer 
+
 	// We could add path/filepath here, and use filepath.Join() to account for different
 	// Paths in different operating systems	
 )
@@ -16,6 +19,13 @@ import (
 // Os.Stat() can give file information and an error, and can be used to check if a file is there
 // os.ReadDir() will give the directory listing
 
+func compressStuff(stringToCompress string) []byte{
+	buffer := bytes.NewBuffer(make([]byte,0,1024))
+	gzipWriter := gzip.NewWriter(buffer)
+	gzipWriter.Write([]byte(stringToCompress))
+	gzipWriter.Close()
+	return buffer.Bytes()
+}
 
 func getHeaders(httpMsg string) map[string]string {
 	        	// First get rid of start line     
@@ -63,7 +73,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
         // make response
         response := "HTTP/1.1 " // Status Line
         urlFound := true
-	//gzipDeclared := false
+	gzipCompress := false
 	// Check if Accept-Encoding is in headers and get the value from it
 	encoding, encoded := headers["Accept-Encoding"]
 	if encoding != "gzip" {
@@ -72,7 +82,6 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		for commaExists {
 			encodeCut1, encodeCut2, commaExists = strings.Cut(encodeCut2, ", ")
 			if encodeCut1 == "gzip"{ 
-				//gzipDeclared = true
 				encoding = "gzip"
 				 }
 		}
@@ -82,6 +91,8 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		if !(encoding == "gzip") {
 			encoded = false
 			fmt.Println("Invalid Encoding Detected *!*!*")
+		} else {
+				gzipCompress = true
 		}
 	} else {
 		fmt.Println("No Encoding")
@@ -118,6 +129,9 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			for current_character := read_result[i] ; current_character!=' '; current_character = read_result[i] {
 				echoString += string(current_character)
 				i++
+			}
+			if gzipCompress {
+				echoString = string(compressStuff(echoString)) 
 			}
 			urlFound = true
 		} else if read_result[5:16]=="user-agent " { // USER-AGENT Endpoint
