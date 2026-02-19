@@ -44,8 +44,8 @@ func getBody(bufferReader *bufio.Reader, bodyLength int) string {
 	var body string
 	perfectBuffer := make([]byte, bodyLength)
 	// In the previous getheaders function, we went through the buffer and consumed everything up the double carriage return.  In this function we will do a io.FullRead to completely read the body without reading too far and going into the next http packet
-	bodyBytes, _ := io.ReadFull(bufferReader, perfectBuffer)
-	body = string(bodyBytes)
+        io.ReadFull(bufferReader, perfectBuffer)
+	body = string(perfectBuffer)
 	return body
 }
 
@@ -86,6 +86,8 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		contentLength, _ = strconv.Atoi(contentLengthString)
 	}
 	body = getBody(bufferReader, contentLength)
+	fmt.Println("Body: ")
+	fmt.Println(body)
         // make response
         response := "HTTP/1.1 " // Status Line
         urlFound := true
