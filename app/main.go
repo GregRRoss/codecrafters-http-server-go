@@ -52,7 +52,7 @@ func getBody(bufferReader *bufio.Reader, bodyLength int) string {
 // This function handles
 // from each thread
 func handleConnection(responder net.Conn, fileDirectory string){
-	body := "BAD BOB'S BAD BODY"
+	var body string
 	defer responder.Close()
 	connectionOpen := true 
         bufferReader := bufio.NewReader(responder)
@@ -78,6 +78,11 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	
         fmt.Println("END OF TRANSMISSION")
 	headers := getHeaders(stringList)
+        connectionStatus := headers["Connection"]
+        connectionStatus = strings.TrimSpace(connectionStatus)
+        if connectionStatus == "close" { 
+                connectionOpen = false 
+	}
 	// Get the Content-Length to know how many bytes to go into the buffer for the body
 	contentLengthString, bodyExists := headers["Content-Length"]
 	contentLength := 0
@@ -244,6 +249,9 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			response += fmt.Sprintf("Content-Length: %d", conLength)
 			response += "\r\n"
 		}
+		if !connectionOpen {
+			response += "Connection: close\r\n"
+		}
 		// End of Header
 		response += "\r\n" // CRLF end of headers
 
@@ -277,13 +285,23 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			dataString := body
 			os.WriteFile(pathString,[]byte(dataString),0644) //0644 is apparently the necessary permissions
 			response := "HTTP/1.1 201 Created\r\n\r\n"
+		        if !connectionOpen {
+                      		  response += "Connection: close\r\n"
+                	}
 			responder.Write([]byte(response))
 		} else {
 			fmt.Println("Improper POST request")
 		}
 	}
-	fmt.Println("AWAITING NEXT TCP")
-	
+	connectionStatus = headers["Connection"]
+	connectionStatus = strings.TrimSpace(connectionStatus)
+	if connectionStatus == "close" {
+		connectionOpen = false 
+		fmt.Println("CONNECTION CLOSED WITH CLIENT")
+		response += "Connection: close"
+	} else {
+		fmt.Println("AWAITING NEXT TCP")
+	}
 } // End loop looping through multiple tcps on one connection
 
 
