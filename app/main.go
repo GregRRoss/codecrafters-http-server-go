@@ -92,6 +92,8 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	gzipCompress := false
 	// Check if Accept-Encoding is in headers and get the value from it
 	encoding, encoded := headers["Accept-Encoding"]
+	encoding = strings.TrimSpace(encoding) // Gets rid of \r\n at end of line
+
 	if encoding != "gzip" {
 		// Encoding could be comma separated list
 		encodeCut1, encodeCut2, commaExists := strings.Cut(encoding, ", ")
