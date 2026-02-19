@@ -82,7 +82,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	contentLengthString, bodyExists := headers["Content-Length"]
 	contentLength := 0
 	if bodyExists {
-		strings.TrimSpace(contentLengthString) // Gets rid of \n after content length
+		contentLengthString = strings.TrimSpace(contentLengthString) // Gets rid of \n after content length
 		contentLength, _ = strconv.Atoi(contentLengthString)
 	}
 	body = getBody(bufferReader, contentLength)
@@ -225,6 +225,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		} else if agentGet {
 			outputAgentName, _ = headers["User-Agent"]
 			response += "Content-Type: text/plain\r\n" // Header for format of response body
+			outputAgentName = strings.TrimSpace(outputAgentName) // Gets rid of \n after content length
 			conLength := len(outputAgentName)
 			fmt.Print("conLength: ")
 			fmt.Println(conLength)
