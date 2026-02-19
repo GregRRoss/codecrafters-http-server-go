@@ -7,10 +7,12 @@ import (
 	"net"
 	"os"
 	"strings"
+	"strconv"
 	"flag"
 	"compress/gzip" // Necessary to compress to gzip format
 	"bytes" // Because gzip.NewWriter requires an io.Writer interface, and bytes provides bytes.Buffer 
-
+	"bufio" // Necessary to manage buffers for reused requests
+	"io" // Necessary for ReadFull to read exactly to end of http body
 	// We could add path/filepath here, and use filepath.Join() to account for different
 	// Paths in different operating systems	
 )
@@ -27,49 +29,63 @@ func compressStuff(stringToCompress string) []byte{
 	return buffer.Bytes()
 }
 
-func getHeaders(httpMsg string) map[string]string {
-	        	// First get rid of start line     
-	   		 cut1, cut2, _ := strings.Cut(httpMsg, "\r\n") // cut 1 will be start line, cut2 is rest of message
-                        //fmt.Println("Start Line: " + cut1)
-			// Next get rid of body
-			cut2, body, _ := strings.Cut(cut2, "\r\n\r\n")
-		        // Now get each line of headers to put in header map
-			headers := make(map[string]string)
-			sepFound := true
-                        // Check each header line to find user-agent
-                        for sepFound {
-                       		cut1, cut2, sepFound =  strings.Cut(cut2, "\r\n") // cut 1 will be the header line, cut2 is rest of header
-                        	//fmt.Println("Header Line : " + cut1)
-				// if sepFound {
-                		// 	fmt.Println("Sep found ")
-				// }
-				key, value, _ := strings.Cut(cut1, ": ")
-				headers[key] = value
-		      	        //fmt.Println("cut2: " + cut2)
-				}
-			
-			fmt.Println("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
-			//fmt.Println(headers)
-			
-			fmt.Println("Body: ")
-			fmt.Println(body)
-			return headers
+// Method to convert a list of strings to a header map
+func getHeaders(headerStrings []string) map[string]string {
+	headers := make(map[string]string)
+	for i:=0 ; i < len(headerStrings) ; i++ {
+		key, value, _ := strings.Cut(headerStrings[i], ": ")
+		headers[key] = value 
+	}
+	return headers
+}
+
+func getBody(bufferReader *bufio.Reader, bodyLength int) string {
+	fmt.Println("PARSING THE BODY")
+	var body string
+	perfectBuffer := make([]byte, bodyLength)
+	// In the previous getheaders function, we went through the buffer and consumed everything up the double carriage return.  In this function we will do a io.FullRead to completely read the body without reading too far and going into the next http packet
+	bodyBytes, _ := io.ReadFull(bufferReader, perfectBuffer)
+	body = string(bodyBytes)
+	return body
 }
 
 // This function handles
 // from each thread
 func handleConnection(responder net.Conn, fileDirectory string){
+	body := "BAD BOB'S BAD BODY"
 	defer responder.Close()
-       // Read get request
-        buffer := make([]byte, 1024) // Create 'Slice' i.e. arrayList needed for net pkg
-        var number_of_bytes_read int
-        number_of_bytes_read, _ = responder.Read(buffer)
-        read_result := string(buffer[:number_of_bytes_read])
-        fmt.Println("START OF TRANSMISSION")
-        fmt.Println(read_result)
+	connectionOpen := true 
+        bufferReader := bufio.NewReader(responder)
+	for connectionOpen {
+	// Use readString to get each line
+ 	// Read Content-Length
+	// use ReadFull to get exactly that content from the buffer
+	stringList := make([]string, 0)
+	// Assembling all the strings into one slicey
+	for  {
+		currentLine, _ := bufferReader.ReadString('\n')
+		stringList = append(stringList, currentLine)
+		// Check if the current line is just an \r\n
+ 		if currentLine == "\r\n" {
+			break
+		} 
+	}
+	fmt.Println("Strings pulled from request: ")
+	for i:=0; i<len(stringList); i++ {
+		fmt.Println(strconv.Itoa(i) + " |  " + stringList[i])
+	}
+
+	
         fmt.Println("END OF TRANSMISSION")
-	headers := getHeaders(read_result)
-	fmt.Println(headers)
+	headers := getHeaders(stringList)
+	// Get the Content-Length to know how many bytes to go into the buffer for the body
+	contentLengthString, bodyExists := headers["Content-Length"]
+	contentLength := 0
+	if bodyExists {
+		strings.TrimSpace(contentLengthString) // Gets rid of \n after content length
+		contentLength, _ = strconv.Atoi(contentLengthString)
+	}
+	body = getBody(bufferReader, contentLength)
         // make response
         response := "HTTP/1.1 " // Status Line
         urlFound := true
@@ -98,7 +114,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 		fmt.Println("No Encoding")
 	}
         // Parse read bytes
-                // We are looking for what comes after the GET / and before the HTTP/1.1
+                // We are looking for what comes after the GET/ and before the HTTP/1.1
                 // Slice we want starts at 01234... character 5 must be a space
         var echoString string
         var outputAgentName string
@@ -111,22 +127,24 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	var getRequest bool = false
 	var postRequest bool = false
 
-	if read_result[0:3]=="GET" {
+	requestLine := stringList[0]
+	// Check if we have a GET request
+	if requestLine[0:3]=="GET" {
 		getRequest = true
-	} else if read_result[0:4]=="POST" {
+	} else if requestLine[0:4]=="POST" {
 		postRequest = true
 	}
 
 	if getRequest{
 		fmt.Println("GET REQUEST RECIEVED")
-		if read_result[5]==' ' { // Top level directory ping
+		if requestLine[5]==' ' { // Top level directory ping
 			urlFound = true
-		} else if read_result[5:10]=="echo/"{ // ECHO endpoint
+		} else if requestLine[5:10]=="echo/"{ // ECHO endpoint
 			fmt.Println("ECHO FOUND")
 			echoTrue = true
 			// Echo string is characters 10 until a space
 			i := 10
-			for current_character := read_result[i] ; current_character!=' '; current_character = read_result[i] {
+			for current_character := requestLine[i] ; current_character!=' '; current_character = requestLine[i] {
 				echoString += string(current_character)
 				i++
 			}
@@ -134,11 +152,11 @@ func handleConnection(responder net.Conn, fileDirectory string){
 				echoString = string(compressStuff(echoString)) 
 			}
 			urlFound = true
-		} else if read_result[5:16]=="user-agent " { // USER-AGENT Endpoint
+		} else if requestLine[5:16]=="user-agent " { // USER-AGENT Endpoint
 			fmt.Println("USER AGENT ENDPOINT REACHED")
 			urlFound = true
 			agentGet = true
-		} else if read_result[5:11]=="files/" {
+		} else if requestLine[5:11]=="files/" {
 			fmt.Println("FILES ENDPOINT REACHED")
 			//Get rest of line to get file name
 			//Check if file exists
@@ -150,7 +168,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			}
 
 			// Parse to get file name
-			_, word2plus, _ := strings.Cut(read_result, " ")
+			_, word2plus, _ := strings.Cut(requestLine, " ")
 			word2, _, _ := strings.Cut(word2plus, " ")  		
 			// word2 will be /files/xxxxx	
 			var getFile string = word2[7:]
@@ -205,21 +223,7 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			response += fmt.Sprintf("Content-Length: %d", echoLength)
 			response += "\r\n"
 		} else if agentGet {
-			cut1, cut2, _ := strings.Cut(read_result, "\r\n") // cut 1 will be the header line, cut2 is rest of header
-			fmt.Println("cut1: " + cut1)
-			fmt.Println("cut2: " + cut2)
-			// Check each header line to find user-agent
-			for {
-				if len(cut1) > 11 {
-					if cut1[0:12] == "User-Agent: " {
-						outputAgentName = cut1[12:]
-						break
-					}
-				}
-			cut1, cut2, _ =  strings.Cut(cut2, "\r\n") // cut 1 will be the header line, cut2 is rest of header
-			fmt.Println("cut1: " + cut1)
-			fmt.Println("cut2: " + cut2)
-		}
+			outputAgentName, _ = headers["User-Agent"]
 			response += "Content-Type: text/plain\r\n" // Header for format of response body
 			conLength := len(outputAgentName)
 			fmt.Print("conLength: ")
@@ -254,18 +258,18 @@ func handleConnection(responder net.Conn, fileDirectory string){
 	} else if postRequest {
 		fmt.Println("POST REQUEST RECIEVED")
 		// Make sure the request looks in files
-		if read_result[5:12]=="/files/" {
+		if requestLine[5:12]=="/files/" {
 			fmt.Println("File POST Request")
 			// Get file name
-                        _, word2plus, _ := strings.Cut(read_result, " ")
+                        _, word2plus, _ := strings.Cut(requestLine, " ")
                         word2, _, _ := strings.Cut(word2plus, " ")
                         // word2 will be /files/xxxxx
                         var saveFile string = word2[7:]
 			fmt.Println("New file name: " + saveFile)
 			pathString := fileDirectory + "/" + saveFile
 			// Parse POST request to get the file contents out of it.
-			 _, cut2, _ :=  strings.Cut(read_result, "\r\n\r\n") // cut 1 will be the header line, cut2 is body
-			dataString := cut2
+			// The body of the post request is the same as the text to put in the file
+			dataString := body
 			os.WriteFile(pathString,[]byte(dataString),0644) //0644 is apparently the necessary permissions
 			response := "HTTP/1.1 201 Created\r\n\r\n"
 			responder.Write([]byte(response))
@@ -273,6 +277,10 @@ func handleConnection(responder net.Conn, fileDirectory string){
 			fmt.Println("Improper POST request")
 		}
 	}
+	fmt.Println("AWAITING NEXT TCP")
+	
+} // End loop looping through multiple tcps on one connection
+
 
 }// End of function handling thread
 
@@ -302,4 +310,4 @@ func main() {
 		 go handleConnection(connection, *fileDirectory)
 	
 	     }
-	}// End MAIN:	
+	}// End MAiIN:	
